@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>最強AIオセロ</title>
+    <!-- Tailwind CSS (CDNの読み込みを待たずにレイアウトが崩れないようCSSでも補完しています) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
@@ -15,47 +16,57 @@
             color: #e5e5e5;
             overflow-x: hidden;
             touch-action: manipulation;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* 盤面の3D効果と質感（強化版） */
+        /* 盤面のコンテナ（幅の確保をCSSで明示） */
         .board-container {
             perspective: 1200px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 10px;
+            width: 100%;
+            max-width: 540px;
+            box-sizing: border-box;
         }
 
         .board {
             display: grid;
             grid-template-columns: repeat(8, 1fr);
             grid-template-rows: repeat(8, 1fr);
-            gap: 1px; /* 境界線を細く、より引き締まった印象に */
+            gap: 1px;
             
             /* リッチな木枠表現 */
             background-color: #3e2723;
             background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 8px);
             
-            padding: 16px; /* 枠の幅 */
-            border-radius: 6px;
+            padding: 12px;
+            border-radius: 4px;
             
             /* 立体的な影 */
             box-shadow: 
-                0 15px 40px rgba(0,0,0,0.6), /* ドロップシャドウ */
-                0 0 0 1px #281815, /* 締め色 */
-                inset 0 0 20px rgba(0,0,0,0.5), /* 内側の陰影 */
-                inset 2px 2px 5px rgba(255,255,255,0.1); /* ハイライト */
+                0 15px 40px rgba(0,0,0,0.6),
+                0 0 0 1px #281815,
+                inset 0 0 20px rgba(0,0,0,0.5),
+                inset 2px 2px 5px rgba(255,255,255,0.1);
                 
             width: 100%;
-            max-width: 540px;
+            /* aspect-ratio未対応ブラウザのためのフォールバック */
+            height: auto;
             aspect-ratio: 1 / 1;
+            
             margin: 0 auto;
             position: relative;
+            box-sizing: border-box;
         }
 
-        /* 盤面の下地（グリッド線の役割） */
+        /* 盤面の下地 */
         .board::after {
             content: '';
             position: absolute;
-            top: 16px; left: 16px; right: 16px; bottom: 16px;
+            top: 12px; left: 12px; right: 12px; bottom: 12px;
             background: #000;
             z-index: 0;
             border-radius: 2px;
@@ -63,18 +74,14 @@
         }
 
         .cell {
-            background-color: #1b5e20; /* 深い緑 */
-            /* フェルトのような質感（中央が明るく、端が暗い） */
+            background-color: #1b5e20;
             background-image: radial-gradient(circle at center, #2e7d32 0%, #1b5e20 100%);
-            
             position: relative;
             z-index: 1;
             cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: center;
-            
-            /* セルの立体感（窪んでいるように見せる） */
             box-shadow: inset 1px 1px 3px rgba(0,0,0,0.5), inset -1px -1px 2px rgba(255,255,255,0.1);
         }
         
@@ -82,7 +89,7 @@
             background-image: radial-gradient(circle at center, #388e3c 0%, #2e7d32 100%);
         }
 
-        /* ヒント表示（置ける場所） */
+        /* ヒント表示 */
         .cell.legal::after {
             content: '';
             width: 25%;
@@ -93,7 +100,7 @@
             box-shadow: 0 0 5px rgba(0,0,0,0.3);
         }
 
-        /* 石のスタイルとアニメーション */
+        /* 石のスタイル */
         .disc {
             width: 85%;
             height: 85%;
@@ -101,19 +108,15 @@
             transition: transform 0.4s cubic-bezier(0.4, 2, 0.55, 0.44);
             transform-style: preserve-3d;
             position: absolute;
-            
-            /* 石の影（盤面に落ちる影） */
             box-shadow: 2px 4px 8px rgba(0,0,0,0.5);
         }
 
-        /* 黒石：プラスチックのような光沢 */
         .disc.black {
             background: #111;
             background: radial-gradient(circle at 35% 35%, #555 0%, #111 50%, #000 100%);
             transform: rotateY(0deg);
             border: 1px solid rgba(0,0,0,0.8);
         }
-        /* 黒石のハイライト強化 */
         .disc.black::after {
             content: '';
             position: absolute;
@@ -125,15 +128,12 @@
             filter: blur(1px);
         }
 
-        /* 白石：陶器やプラスチックのような光沢 */
         .disc.white {
             background: #eee;
             background: radial-gradient(circle at 35% 35%, #fff 0%, #ddd 40%, #bbb 100%);
             transform: rotateY(180deg);
             border: 1px solid #999;
         }
-        
-        /* 白石は少し膨らんで見えるようにシャドウ調整 */
         .disc.white::after {
             content: '';
             position: absolute;
@@ -142,10 +142,7 @@
             box-shadow: inset -2px -2px 6px rgba(0,0,0,0.1);
         }
 
-        /* 石を裏返すためのギミック（Blackが表、Whiteが裏として扱うが、CSSだけで完結させずJSでクラスを切り替える方式をとるため、擬似要素で両面を作る） */
-        /* 今回はシンプルに、transform: scale(0) -> scale(1) のような反転ではなく、
-           回転アニメーションっぽく見せるためにJSでclassを付け替える瞬間にアニメーションさせる */
-        
+        /* アニメーション定義 */
         @keyframes flip-black-to-white {
             0% { transform: rotateY(0deg) scale(1); background: radial-gradient(circle at 35% 35%, #555 0%, #111 50%, #000 100%); }
             50% { transform: rotateY(90deg) scale(1.1); }
@@ -176,7 +173,6 @@
             animation: flip-black-to-white 0.4s forwards;
         }
 
-        /* 最後の着手位置マーカー */
         .last-move-marker {
             position: absolute;
             width: 30%;
@@ -191,7 +187,7 @@
             box-shadow: 0 0 6px #ef5350;
         }
 
-        /* スコアボード */
+        /* スコアパネル */
         .score-panel {
             background: #2a2a2a;
             border-radius: 12px;
@@ -202,6 +198,9 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             margin-bottom: 1rem;
             border: 1px solid #333;
+            width: 100%;
+            max-width: 540px;
+            box-sizing: border-box;
         }
 
         .player-score {
@@ -289,7 +288,6 @@
             box-shadow: 0 0 0 #333;
         }
 
-        /* 難易度選択 */
         select {
             background: #333;
             color: white;
@@ -299,7 +297,7 @@
         }
     </style>
 </head>
-<body class="flex flex-col min-h-screen">
+<body>
 
     <!-- ヘッダー -->
     <header class="p-4 text-center">
@@ -308,17 +306,17 @@
     </header>
 
     <!-- メインゲームエリア -->
-    <main class="flex-grow flex flex-col items-center justify-center p-4 w-full max-w-2xl mx-auto">
+    <main class="flex-grow flex flex-col items-center justify-center p-4 w-full mx-auto">
         
         <!-- スコアと情報 -->
-        <div class="w-full mb-4">
+        <div class="w-full flex flex-col items-center">
             <div class="score-panel">
                 <div id="score-black" class="player-score active">
                     <span class="disc-icon" style="background: radial-gradient(circle at 35% 35%, #444, #000);"></span>
                     <span class="font-bold">あなた</span>
                     <div class="text-2xl" id="count-black">2</div>
                 </div>
-                <div class="flex flex-col items-center mx-4">
+                <div class="flex flex-col items-center mx-2">
                     <div class="text-xs text-gray-400 mb-1">LEVEL</div>
                     <select id="difficulty-select" onchange="changeDifficulty()">
                         <option value="1">初級 (Lv 1)</option>
@@ -336,7 +334,7 @@
         </div>
 
         <!-- 盤面 -->
-        <div class="board-container w-full px-2">
+        <div class="board-container">
             <div id="board" class="board">
                 <!-- Cells will be generated by JS -->
             </div>
@@ -362,42 +360,21 @@
         </div>
     </div>
 
-    <!-- AI思考中オーバーレイ（操作ブロック用） -->
+    <!-- AI思考中オーバーレイ -->
     <div id="thinking-overlay" class="fixed inset-0 z-50 bg-transparent hidden"></div>
 
     <script>
-        /**
-         * オセロ（リバーシ）のコアロジックとAI
-         */
-        
         const BOARD_SIZE = 8;
         const BLACK = 1;
         const WHITE = -1;
         const EMPTY = 0;
 
         let board = [];
-        let currentPlayer = BLACK; // プレイヤーは常に黒(1)とする（先手）
+        let currentPlayer = BLACK;
         let isGameActive = true;
         let showHints = true;
-        let aiLevel = 6; // 探索深さ (デフォルト最強)
-        let lastMove = null; // {r, c}
-
-        // 初期化
-        function initBoard() {
-            board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(EMPTY));
-            // 配置
-            board[3][3] = WHITE;
-            board[3][4] = BLACK;
-            board[4][3] = BLACK;
-            board[4][4] = WHITE;
-
-            currentPlayer = BLACK;
-            isGameActive = true;
-            lastMove = null;
-            
-            updateUI();
-            checkGameState();
-        }
+        let aiLevel = 6;
+        let lastMove = null;
 
         // --- ゲームルール処理 ---
 
@@ -420,7 +397,6 @@
                     nc += dc;
                     flipped = true;
                 }
-
                 if (flipped && nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && currentBoard[nr][nc] === player) {
                     return true;
                 }
@@ -470,7 +446,7 @@
                 animateMove(r, c, player, flippedPositions);
             }
             
-            return flippedCount; // AI評価用に返す
+            return flippedCount;
         }
 
         function getScore(currentBoard = board) {
@@ -484,10 +460,7 @@
             return { black, white };
         }
 
-        // --- AIロジック (Minimax + Alpha-Beta) ---
-
-        // 盤面の重み付け（静的評価）
-        // 角は非常に高く、角の隣（Xマス、Cマス）は危険なので低く設定
+        // --- AIロジック ---
         const WEIGHTS = [
             [120, -20, 20,  5,  5, 20, -20, 120],
             [-20, -40, -5, -5, -5, -5, -40, -20],
@@ -503,10 +476,7 @@
             let score = 0;
             let myTiles = 0;
             let oppTiles = 0;
-            let myFrontier = 0;
-            let oppFrontier = 0;
             
-            // 1. 位置の重み付けと石の数
             for (let r = 0; r < BOARD_SIZE; r++) {
                 for (let c = 0; c < BOARD_SIZE; c++) {
                     let val = currentBoard[r][c];
@@ -518,8 +488,6 @@
                         oppTiles++;
                     }
 
-                    // フロンティア（空白に隣接する石）の計算
-                    // フロンティアが多い＝相手に置く場所を与えやすい＝悪い
                     if (val !== EMPTY) {
                         let isFrontier = false;
                         for (let [dr, dc] of DIRECTIONS) {
@@ -531,56 +499,42 @@
                             }
                         }
                         if (isFrontier) {
-                            if (val === player) score -= 10; // フロンティアへのペナルティ
+                            if (val === player) score -= 10; 
                             else score += 10;
                         }
                     }
                 }
             }
 
-            // 2. 着手可能数 (Mobility)
-            // 相手の手数を減らし、自分の手数を増やすのが重要
             let myMoves = getValidMoves(player, currentBoard).length;
             let oppMoves = getValidMoves(-player, currentBoard).length;
-            
-            // 手数が多いほうが有利
             score += (myMoves - oppMoves) * 15;
 
-            // 3. 確定石（簡易版：角のみ考慮）
-            // 本来は角から繋がる辺も見るが、計算コスト削減のため重み付けで代用
-
-            // 4. ゲーム進行度による調整
-            // 終盤は石の数が正義（パリティ）
             let totalTiles = myTiles + oppTiles;
-            if (totalTiles > 54) { // 終盤
-                score += (myTiles - oppTiles) * 10; // 石数の価値を上げる
+            if (totalTiles > 54) {
+                score += (myTiles - oppTiles) * 10;
             }
 
             return score;
         }
 
-        // ボードのコピーヘルパー
         function cloneBoard(src) {
             return src.map(row => [...row]);
         }
 
         async function getBestMove(player) {
-            // UIをブロックしないように少し待つ
             await new Promise(r => setTimeout(r, 50));
 
-            // 残り手数に応じて探索深さを変える（終盤完全読み）
             let emptyCount = 0;
             for(let r=0; r<8; r++) for(let c=0; c<8; c++) if(board[r][c] === EMPTY) emptyCount++;
             
             let depth = aiLevel;
-            if (emptyCount <= 12) depth = 12; // 終盤は深く
-            if (emptyCount <= 8) depth = 14;  // 完全読みモード
+            if (emptyCount <= 12) depth = 12;
+            if (emptyCount <= 8) depth = 14;
 
-            // 探索開始
             let moves = getValidMoves(player, board);
             if (moves.length === 0) return null;
 
-            // Move Ordering: 角を取る手や良い手を先に探索して刈り込み効率を上げる
             moves.sort((a, b) => WEIGHTS[b.r][b.c] - WEIGHTS[a.r][a.c]);
 
             let bestScore = -Infinity;
@@ -590,4 +544,42 @@
 
             for (let move of moves) {
                 let tempBoard = cloneBoard(board);
-        
+                executeMove(move.r, move.c, player, tempBoard, false);
+                
+                let score = -alphaBeta(tempBoard, depth - 1, alpha, beta, -player);
+                
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMove = move;
+                }
+                alpha = Math.max(alpha, bestScore);
+            }
+            return bestMove;
+        }
+
+        function alphaBeta(nodeBoard, depth, alpha, beta, maximizingPlayer) {
+            if (depth === 0) {
+                return evaluateBoard(nodeBoard, maximizingPlayer);
+            }
+
+            let moves = getValidMoves(maximizingPlayer, nodeBoard);
+            
+            if (moves.length === 0) {
+                if (getValidMoves(-maximizingPlayer, nodeBoard).length === 0) {
+                    let score = getScore(nodeBoard);
+                    let diff = (maximizingPlayer === BLACK) ? score.black - score.white : score.white - score.black;
+                    return diff * 1000;
+                }
+                return -alphaBeta(nodeBoard, depth - 1, -beta, -alpha, -maximizingPlayer);
+            }
+
+            let bestScore = -Infinity;
+            
+            for (let move of moves) {
+                let tempBoard = cloneBoard(nodeBoard);
+                executeMove(move.r, move.c, maximizingPlayer, tempBoard, false);
+                
+                let score = -alphaBeta(tempBoard, depth - 1, -beta, -alpha, -maximizingPlayer);
+                
+                bestScore = Math.max(bestScore, score);
+                alpha = Ma
